@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>TrackIt | Smart Food & Macro Tracking</title>
+  <meta name="description" content="Personal intelligent nutrition and macro tracker with Gemini AI plate vision scanning and Apple Health scale sync">
+  <meta name="theme-color" content="#07090e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TrackIt">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  
+  <!-- Modern Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+
+  <!-- App PIN Lock Screen Overlay -->
+  <div id="pin-lock-overlay" class="pin-lock-overlay" style="display: none;">
+    <div class="pin-lock-card">
+      <div class="pin-lock-icon">🔒</div>
+      <h2 class="pin-lock-title">TrackIt Protected</h2>
+      <p class="pin-lock-desc">Enter your 4-digit passcode to access your personal nutrition diary and AI features.</p>
+      
+      <div class="pin-input-wrap">
+        <input type="password" id="pin-lock-input" class="pin-input" placeholder="••••" inputmode="numeric" maxlength="8" autocomplete="current-password">
+      </div>
+      <div id="pin-error-msg" class="pin-error-msg" style="display: none;">Incorrect PIN. Please try again.</div>
+
+      <button id="pin-unlock-btn" class="btn-primary" style="width: 100%; margin-top: 16px;">
+        Unlock TrackIt
+      </button>
+
+      <div class="pin-note">
+        <span>✓ Saved permanently on this device. You will not be asked again.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="brand-wrapper">
+      <img src="/icons/icon.svg" alt="TrackIt Logo" class="brand-icon">
+      <h1 class="brand-title">TrackIt</h1>
+    </div>
+    
+    <div class="date-controls">
+      <button id="prev-date-btn" class="date-btn" aria-label="Previous day">&#x276E;</button>
+      <span id="current-date-label" class="date-display">Today</span>
+      <button id="next-date-btn" class="date-btn" aria-label="Next day">&#x276F;</button>
+    </div>
+  </header>
+
+  <!-- Main View Containers -->
+  <main class="main-content">
+
+    <!-- 1. TODAY LOG VIEW -->
+    <section id="view-today" class="view-panel active">
+      
+      <!-- Macro Rings & Calories Summary -->
+      <div class="glass-card highlight">
+        <div class="rings-container">
+          <!-- Concentric SVG Macro Rings -->
+          <div class="ring-wrapper">
+            <svg class="macro-ring-svg" viewBox="0 0 140 140">
+              <!-- Outer Ring: Calories -->
+              <circle class="ring-bg" cx="70" cy="70" r="58" stroke="rgba(56, 189, 248, 0.15)" />
+              <circle id="ring-cal-fg" class="ring-fg" cx="70" cy="70" r="58" stroke="#38bdf8" stroke-dasharray="364.4" stroke-dashoffset="364.4" />
+              <!-- Middle Ring: Protein -->
+              <circle class="ring-bg" cx="70" cy="70" r="44" stroke="rgba(16, 185, 129, 0.15)" />
+              <circle id="ring-pro-fg" class="ring-fg" cx="70" cy="70" r="44" stroke="#10b981" stroke-dasharray="276.4" stroke-dashoffset="276.4" />
+              <!-- Inner Ring: Carbs -->
+              <circle class="ring-bg" cx="70" cy="70" r="30" stroke="rgba(245, 158, 11, 0.15)" />
+              <circle id="ring-carb-fg" class="ring-fg" cx="70" cy="70" r="30" stroke="#f59e0b" stroke-dasharray="188.5" stroke-dashoffset="188.5" />
+            </svg>
+            <div class="calorie-center">
+              <div id="cals-remaining-val" class="cal-number">0</div>
+              <div class="cal-label">Remaining</div>
+            </div>
+          </div>
+
+          <!-- Macro Bars -->
+          <div class="macro-bars">
+            <div class="macro-item">
+              <div class="macro-head">
+                <span style="color: var(--cal-color)">Calories</span>
+                <span id="cal-text-fraction">0 / 0 kcal</span>
+              </div>
+              <div class="macro-bar-track">
+                <div id="bar-cal" class="macro-bar-fill fill-cal" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div class="macro-item">
+              <div class="macro-head">
+                <span style="color: var(--pro-color)">Protein</span>
+                <span id="pro-text-fraction">0 / 0g</span>
+              </div>
+              <div class="macro-bar-track">
+                <div id="bar-pro" class="macro-bar-fill fill-pro" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div class="macro-item">
+              <div class="macro-head">
+                <span style="color: var(--carb-color)">Carbs</span>
+                <span id="carb-text-fraction">0 / 0g</span>
+              </div>
+              <div class="macro-bar-track">
+                <div id="bar-carb" class="macro-bar-fill fill-carb" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div class="macro-item">
+              <div class="macro-head">
+                <span style="color: var(--fat-color)">Fat</span>
+                <span id="fat-text-fraction">0 / 0g</span>
+              </div>
+              <div class="macro-bar-track">
+                <div id="bar-fat" class="macro-bar-fill fill-fat" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Micronutrients Footer -->
+        <div style="display: flex; justify-content: space-between; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border-subtle); font-size: 0.75rem; color: var(--text-secondary);">
+          <span>Sodium: <strong id="sodium-val" style="color: var(--sodium-color)">0</strong> / <span id="sodium-goal">2300</span>mg</span>
+          <span>Fiber: <strong id="fiber-val" style="color: #a3e635">0</strong> / <span id="fiber-goal">38</span>g</span>
+          <span>Surplus Rate: <strong id="burn-rate-badge" style="color: var(--pro-color)">+250 kcal</strong></span>
+        </div>
+      </div>
+
+      <!-- Health Scale & Sleep Strip (Metric) -->
+      <div class="health-strip">
+        <div class="health-stat">
+          <span>Scale:</span>
+          <strong id="scale-weight-display">-- kg</strong>
+          <span id="scale-fat-display" style="color: var(--text-muted); font-size: 0.75rem;">(--% fat)</span>
+        </div>
+        <div class="health-stat">
+          <span>Sleep:</span>
+          <strong id="sleep-display">-- hrs</strong>
+        </div>
+        <button id="quick-scale-sync-btn" class="btn-water-quick" style="border-color: rgba(255,255,255,0.2); color: var(--text-primary); background: rgba(255,255,255,0.06);">
+          Log Scale
+        </button>
+      </div>
+
+      <!-- Meal Categories -->
+      <div class="meal-section" data-meal="breakfast">
+        <div class="meal-header">
+          <div class="meal-title-wrap">
+            <h2 class="meal-title">Breakfast</h2>
+            <span class="meal-total-cals" id="breakfast-cals">0 kcal</span>
+          </div>
+          <button class="meal-add-btn" data-meal="breakfast">+ Add Food</button>
+        </div>
+        <div class="meal-items-list" id="breakfast-items">
+          <div class="empty-meal-hint">No food logged yet for breakfast</div>
+        </div>
+      </div>
+
+      <div class="meal-section" data-meal="lunch">
+        <div class="meal-header">
+          <div class="meal-title-wrap">
+            <h2 class="meal-title">Lunch</h2>
+            <span class="meal-total-cals" id="lunch-cals">0 kcal</span>
+          </div>
+          <button class="meal-add-btn" data-meal="lunch">+ Add Food</button>
+        </div>
+        <div class="meal-items-list" id="lunch-items">
+          <div class="empty-meal-hint">No food logged yet for lunch</div>
+        </div>
+      </div>
+
+      <div class="meal-section" data-meal="dinner">
+        <div class="meal-header">
+          <div class="meal-title-wrap">
+            <h2 class="meal-title">Dinner</h2>
+            <span class="meal-total-cals" id="dinner-cals">0 kcal</span>
+          </div>
+          <button class="meal-add-btn" data-meal="dinner">+ Add Food</button>
+        </div>
+        <div class="meal-items-list" id="dinner-items">
+          <div class="empty-meal-hint">No food logged yet for dinner</div>
+        </div>
+      </div>
+
+      <div class="meal-section" data-meal="snack">
+        <div class="meal-header">
+          <div class="meal-title-wrap">
+            <h2 class="meal-title">Snacks</h2>
+            <span class="meal-total-cals" id="snack-cals">0 kcal</span>
+          </div>
+          <button class="meal-add-btn" data-meal="snack">+ Add Food</button>
+        </div>
+        <div class="meal-items-list" id="snack-items">
+          <div class="empty-meal-hint">No food logged yet for snacks</div>
+        </div>
+      </div>
+
+      <!-- Quick Add Actions -->
+      <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <button id="quick-manual-cals-btn" class="btn-secondary" style="flex: 1; padding: 10px; font-size: 0.84rem;">
+          + Quick Calorie Entry
+        </button>
+        <button id="jump-to-scanner-btn" class="btn-primary" style="flex: 1; padding: 10px; font-size: 0.84rem;">
+          AI Plate Scanner
+        </button>
+      </div>
+
+    </section>
+
+    <!-- 2. AI VISION SCANNER VIEW -->
+    <section id="view-scanner" class="view-panel">
+      <div class="glass-card scanner-card">
+        <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 6px;">AI Plate Scanner</h2>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 18px;">
+          Snap a photo of your plate. Gemini Vision analyzes the meal and estimates items, grams, and macros automatically.
+        </p>
+
+        <!-- Hidden File Inputs -->
+        <input type="file" id="camera-file-input" accept="image/*" capture="environment" style="display: none;">
+        <input type="file" id="gallery-file-input" accept="image/*" style="display: none;">
+
+        <!-- Camera / Preview Box -->
+        <div id="camera-dropzone" class="camera-preview-box">
+          <img id="scanned-image-preview" class="preview-img" alt="Scanned meal preview">
+          <div id="cam-placeholder" class="cam-placeholder-content">
+            <svg class="cam-icon-big" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary)">Tap to Take Photo</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted)">Camera snap or photo library</span>
+          </div>
+        </div>
+
+        <div class="scan-action-row">
+          <button id="trigger-camera-btn" class="btn-primary">
+            <svg style="width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            Take Photo
+          </button>
+          <button id="trigger-gallery-btn" class="btn-secondary">
+            Upload File
+          </button>
+        </div>
+
+        <button id="start-ai-scan-btn" class="btn-primary" style="width: 100%; margin-top: 14px; display: none;">
+          Analyze Plate with Gemini AI
+        </button>
+
+        <div id="scan-loading-indicator" style="display: none; margin-top: 16px; text-align: center;">
+          <div class="spinner"></div>
+          <div style="font-size: 0.85rem; color: var(--cal-color); margin-top: 8px; font-weight: 600;">
+            Gemini is analyzing plate items, estimating gram weights & macros...
+          </div>
+        </div>
+
+        <!-- AI Scan Breakdown & Review -->
+        <div id="ai-results-container" class="ai-results-box">
+          <div class="ai-header-meta">
+            <h3 id="ai-plate-title" style="font-size: 1rem; font-weight: 700;">Meal Analysis</h3>
+            <span id="ai-confidence-badge" class="ai-confidence-pill">High Confidence</span>
+          </div>
+
+          <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: var(--radius-md); padding: 12px; margin-bottom: 14px; display: flex; justify-content: space-around; font-size: 0.82rem;">
+            <div>Cals: <strong id="ai-total-cals" style="color: var(--cal-color)">0</strong></div>
+            <div>Protein: <strong id="ai-total-pro" style="color: var(--pro-color)">0g</strong></div>
+            <div>Carbs: <strong id="ai-total-carb" style="color: var(--carb-color)">0g</strong></div>
+            <div>Fat: <strong id="ai-total-fat" style="color: var(--fat-color)">0g</strong></div>
+          </div>
+
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px;">
+            Review and adjust estimated grams (g) if needed before logging:
+          </div>
+
+          <div id="ai-items-list" class="ai-items-review"></div>
+
+          <div class="form-row">
+            <label class="form-label">Log to Meal Section:</label>
+            <select id="ai-target-meal-type" class="form-select">
+              <option value="lunch" selected>Lunch</option>
+              <option value="dinner">Dinner</option>
+              <option value="breakfast">Breakfast</option>
+              <option value="snack">Snacks</option>
+            </select>
+          </div>
+
+          <button id="commit-ai-meal-btn" class="btn-primary" style="width: 100%; margin-top: 10px;">
+            Log Scanned Items to Meal
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 3. SMART RECIPES & MEAL RECOMMENDATIONS -->
+    <section id="view-recipes" class="view-panel">
+      <!-- Remaining Context Banner -->
+      <div class="recipes-context-banner">
+        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: var(--pro-color); letter-spacing: 0.05em; margin-bottom: 4px;">
+          Lean Bulk Hypertrophy Engine
+        </div>
+        <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 8px;">
+          Tailored to Your Remaining Macros
+        </h2>
+        <div style="display: flex; gap: 12px; font-size: 0.85rem; font-weight: 700;">
+          <span style="color: var(--cal-color)">Remaining: <span id="recipe-rem-cal">0</span> kcal</span>
+          <span style="color: var(--pro-color)"><span id="recipe-rem-pro">0</span>g P</span>
+          <span style="color: var(--carb-color)"><span id="recipe-rem-carb">0</span>g C</span>
+          <span style="color: var(--fat-color)"><span id="recipe-rem-fat">0</span>g F</span>
+        </div>
+      </div>
+
+      <!-- Avoided Ingredients Permanent Indicator -->
+      <div style="background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.25); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 16px; font-size: 0.82rem; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <span style="color: var(--sodium-color); font-weight: 700;">Strictly Avoiding:</span>
+          <span id="recipe-avoided-badge" style="color: var(--text-primary); margin-left: 6px;">cilantro, mushrooms</span>
+        </div>
+        <span style="font-size: 0.72rem; color: var(--text-muted); cursor: pointer;" id="jump-to-profile-avoid-link">Set in Profile &rarr;</span>
+      </div>
+
+      <!-- Recipe Customization Box -->
+      <div class="glass-card">
+        <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 12px;">Generate Recipes</h3>
+        
+        <div class="form-row">
+          <label class="form-label">Special Request or Ingredients On Hand (Optional):</label>
+          <input type="text" id="recipe-user-prompt" class="form-input" placeholder="e.g. air fryer dinner, beef & rice, quick 15 min...">
+        </div>
+
+        <button id="generate-recipes-btn" class="btn-primary" style="width: 100%; margin-top: 6px;">
+          Generate 3 AI Muscle-Building Recipes
+        </button>
+
+        <div id="recipe-loading-indicator" style="display: none; margin-top: 16px; text-align: center;">
+          <div class="spinner"></div>
+          <div style="font-size: 0.85rem; color: var(--cal-color); margin-top: 8px; font-weight: 600;">
+            Gemini is synthesizing high-protein recipes matching your remaining macros...
+          </div>
+        </div>
+      </div>
+
+      <!-- Generated Recipes Grid -->
+      <div id="recipes-results-grid" class="recipe-cards-grid"></div>
+    </section>
+
+    <!-- 4. ANALYTICS & PROGRESS -->
+    <section id="view-analytics" class="view-panel">
+      <!-- Adaptive Diet Coach Check-In Card -->
+      <div id="adaptive-coach-card" class="coach-card">
+        <div class="coach-header">
+          <h2 style="font-size: 1.05rem; font-weight: 800; color: #ecfdf5;">Adaptive Diet Coach (Lean Bulk)</h2>
+          <span id="coach-confidence-badge" class="coach-badge">Hypertrophy Active</span>
+        </div>
+        <p id="coach-recommendation-text" style="font-size: 0.85rem; color: #a7f3d0; margin-bottom: 12px; line-height: 1.45;">
+          Loading metabolic expenditure and weight trend analysis...
+        </p>
+        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: var(--radius-md); margin-bottom: 12px;">
+          <span>True TDEE: <strong id="coach-true-tdee" style="color: var(--cal-color)">-- kcal</strong></span>
+          <span>14-Day Delta: <strong id="coach-weight-delta" style="color: var(--pro-color)">-- kg</strong></span>
+        </div>
+        <button id="apply-coach-adjustment-btn" class="btn-primary" style="width: 100%; background: linear-gradient(135deg, #059669, #10b981); color: #022c22; font-size: 0.84rem; padding: 10px;">
+          Apply Suggested Targets
+        </button>
+      </div>
+
+      <!-- Summary Stats Grid (Metric) -->
+      <div class="stat-grid-3">
+        <div class="stat-box">
+          <div class="stat-box-lbl">7-Day Avg Cal</div>
+          <div id="stat-avg-cals" class="stat-box-val" style="color: var(--cal-color)">--</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-lbl">7-Day Avg Pro</div>
+          <div id="stat-avg-pro" class="stat-box-val" style="color: var(--pro-color)">--g</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-lbl">Current Scale</div>
+          <div id="stat-latest-weight" class="stat-box-val" style="color: #f8fafc">-- kg</div>
+        </div>
+      </div>
+
+      <!-- Chart 1: Calories vs Target Trend -->
+      <div class="glass-card">
+        <h3 style="font-size: 0.92rem; font-weight: 700; margin-bottom: 4px;">Daily Calories vs Target</h3>
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">Past 14 days intake against target line</p>
+        <div class="chart-container" id="chart-cals-wrapper">
+          <svg id="chart-cals-svg" width="100%" height="160" viewBox="0 0 500 160"></svg>
+        </div>
+      </div>
+
+      <!-- Chart 2: Scale Weight & Body Fat Curve (Metric) -->
+      <div class="glass-card">
+        <h3 style="font-size: 0.92rem; font-weight: 700; margin-bottom: 4px;">Scale Weight & Body Fat Trend (kg)</h3>
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">Synced from iPhone Health / Smart Scale</p>
+        <div class="chart-container" id="chart-weight-wrapper">
+          <svg id="chart-weight-svg" width="100%" height="160" viewBox="0 0 500 160"></svg>
+        </div>
+      </div>
+
+      <!-- Chart 3: Sleep vs Nutrition Correlation -->
+      <div class="glass-card">
+        <h3 style="font-size: 0.92rem; font-weight: 700; margin-bottom: 4px;">Sleep Duration vs Nutrition Adherence</h3>
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">HealthKit sleep hours compared to daily calorie intake</p>
+        <div class="chart-container" id="chart-sleep-wrapper">
+          <svg id="chart-sleep-svg" width="100%" height="140" viewBox="0 0 500 140"></svg>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 5. SETTINGS, BIOMETRICS & APPLE HEALTH SYNC -->
+    <section id="view-settings" class="view-panel">
+      <!-- Biometrics & Goals Form (Metric) -->
+      <div class="glass-card">
+        <div class="settings-group-title">Personal Biometrics & Goals (Metric)</div>
+        
+        <div class="form-row">
+          <label class="form-label">Name</label>
+          <input type="text" id="setting-name" class="form-input" value="David">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-row">
+            <label class="form-label">Age</label>
+            <input type="number" id="setting-age" class="form-input" value="28">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Biological Sex</label>
+            <select id="setting-sex" class="form-select">
+              <option value="male" selected>Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-row">
+            <label class="form-label">Height (cm)</label>
+            <input type="number" id="setting-height" class="form-input" value="178">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Current Weight (kg)</label>
+            <input type="number" step="0.1" id="setting-weight" class="form-input" value="78.0">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-row">
+            <label class="form-label">Body Fat % (from Scale)</label>
+            <input type="number" step="0.1" id="setting-body-fat" class="form-input" value="15.0">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Activity Level</label>
+            <select id="setting-activity" class="form-select">
+              <option value="sedentary">Sedentary (Desk Job)</option>
+              <option value="light">Lightly Active (1-3x/wk)</option>
+              <option value="moderate" selected>Moderately Active (3-5x/wk)</option>
+              <option value="very_active">Very Active (6-7x/wk)</option>
+              <option value="athlete">Athlete / Intense</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-row">
+            <label class="form-label">Primary Goal</label>
+            <select id="setting-goal" class="form-select">
+              <option value="lean_bulk" selected>Muscle Gain / Lean Bulk</option>
+              <option value="maintain">Maintenance</option>
+              <option value="fat_loss">Fat Loss / Cutting</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Commitment Rate</label>
+            <select id="setting-rate" class="form-select">
+              <option value="385" selected>+385 kcal (+0.35 kg/wk, Your Goal: Target Hypertrophy)</option>
+              <option value="250">+250 kcal (+0.25 kg/wk, Clean Bulk)</option>
+              <option value="150">+150 kcal (+0.15 kg/wk, Conservative Bulk)</option>
+              <option value="500">+500 kcal (+0.50 kg/wk, Aggressive Bulk)</option>
+              <option value="0">0 kcal (Maintenance)</option>
+              <option value="-350">-350 kcal (-0.35 kg/wk, Mild Cut)</option>
+              <option value="-500">-500 kcal (-0.50 kg/wk, Standard Cut)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Custom Calorie Target Override -->
+        <div class="form-row">
+          <label class="form-label">Exact Daily Calorie Target (Optional Override):</label>
+          <input type="number" id="setting-custom-cals" class="form-input" placeholder="Leave blank for auto-formula or enter e.g. 2800">
+          <span style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 4px;">
+            If you already know your proven calorie target (e.g. 2800 kcal), enter it here. Macros will auto-balance to it.
+          </span>
+        </div>
+
+        <!-- Permanent Ingredients to Avoid -->
+        <div class="form-row" style="margin-top: 6px;">
+          <label class="form-label">Ingredients to Avoid (Allergies / Dislikes — Set Once):</label>
+          <input type="text" id="setting-avoided-ingredients" class="form-input" placeholder="e.g. cilantro, mushrooms, dairy" value="cilantro, mushrooms">
+          <span style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 4px;">
+            These ingredients will be permanently excluded from all AI recipe suggestions.
+          </span>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px; margin: 14px 0; font-size: 0.8rem;">
+          <div style="color: var(--text-secondary); margin-bottom: 4px;">Calculated Metabolic Profile (Metric):</div>
+          <div>Formula: <strong id="calc-formula-display" style="color: var(--cal-color)">Katch-McArdle</strong></div>
+          <div>BMR: <strong id="calc-bmr-display">--</strong> kcal | TDEE: <strong id="calc-tdee-display">--</strong> kcal</div>
+          <div>Target: <strong id="calc-target-cals-display" style="color: var(--pro-color)">--</strong> kcal (<span id="calc-macro-split-display" style="color: var(--text-secondary)">--P / --C / --F</span>)</div>
+          <div>Lean Body Mass: <strong id="calc-lean-mass-display" style="color: #38bdf8">-- kg</strong> | BMI: <strong id="calc-bmi-display">--</strong></div>
+        </div>
+
+        <button id="save-profile-btn" class="btn-primary" style="width: 100%;">
+          Save Profile & Recalculate Targets
+        </button>
+      </div>
+
+      <!-- Gemini AI API Key -->
+      <div class="glass-card">
+        <div class="settings-group-title">Gemini AI Configuration</div>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 12px;">
+          Your personal Gemini API key powers the vision plate scanner and recipe generator.
+        </p>
+        <div class="form-row">
+          <label class="form-label">Gemini API Key</label>
+          <input type="password" id="setting-gemini-key" class="form-input" placeholder="AIzaSy... (leave blank if set via .env)">
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button id="save-gemini-key-btn" class="btn-secondary" style="flex: 1;">
+            Save Key
+          </button>
+          <button id="test-gemini-key-btn" class="btn-secondary" style="flex: 1; border-color: rgba(99, 102, 241, 0.4); color: var(--cal-color);">
+            ⚡ Test Connection
+          </button>
+        </div>
+      </div>
+
+      <!-- Device Security & App PIN -->
+      <div class="glass-card">
+        <div class="settings-group-title">Device Security (Passcode Lock)</div>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 12px;">
+          When an <code>APP_PIN</code> is configured in Cloudflare, TrackIt is locked to anyone without your passcode. Once entered on this device, it stays remembered permanently.
+        </p>
+        <div id="device-pin-status-box" style="padding: 10px 14px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; margin-bottom: 14px; font-size: 0.82rem; color: var(--accent-success);">
+          🔒 Passcode authentication active on this device
+        </div>
+        <button id="lock-device-btn" class="btn-secondary" style="width: 100%;">
+          Lock TrackIt on This Device
+        </button>
+      </div>
+
+      <!-- Apple Health & Smart Scale Sync Guide (Metric) -->
+      <div class="glass-card">
+        <div class="settings-group-title">Apple Health Sync (iPhone Shortcuts)</div>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 14px;">
+          Automatically sync your morning scale weight (kg), body fat %, BMI, lean mass, and sleep from your iPhone to TrackIt.
+        </p>
+
+        <div class="form-row">
+          <label class="form-label">Sync Webhook URL (for Apple Shortcut):</label>
+          <div class="copy-box">
+            <input type="text" id="webhook-url-display" class="copy-input" readonly value="http://localhost:3000/api/health/sync">
+            <button id="copy-webhook-url-btn" class="copy-btn">Copy</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">Security Bearer Token:</label>
+          <div class="copy-box">
+            <input type="text" id="webhook-token-display" class="copy-input" readonly value="--">
+            <button id="copy-webhook-token-btn" class="copy-btn">Copy</button>
+          </div>
+        </div>
+
+        <!-- How to Setup Step by Step (Metric) -->
+        <div style="background: rgba(0, 0, 0, 0.25); border-radius: var(--radius-md); padding: 14px; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 14px;">
+          <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">How to automate with iOS Shortcuts:</div>
+          <ol style="padding-left: 18px; display: flex; flex-direction: column; gap: 4px;">
+            <li>Open the built-in <strong>Shortcuts</strong> app on your iPhone.</li>
+            <li>Tap <strong>Automation</strong> &rarr; <strong>New Automation</strong> &rarr; <em>When Wake-up Alarm is Stopped</em>.</li>
+            <li>Action 1: <em>Find Health Samples</em> (Type: Weight in kg, Sort: Most Recent, Limit: 1).</li>
+            <li>Action 2: <em>Find Health Samples</em> (Type: Body Fat %, Limit: 1).</li>
+            <li>Action 3: <em>Find Health Samples</em> (Type: Sleep Analysis, Most Recent 1 night).</li>
+            <li>Action 4: <em>Get Contents of URL</em> &rarr; Method: POST to your Webhook URL with JSON payload:
+              <code style="display: block; margin-top: 4px; padding: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; color: #38bdf8;">
+                {"token": "YOUR_TOKEN", "weight_kg": [Weight], "body_fat_pct": [Body Fat], "sleep_hours": [Sleep]}
+              </code>
+            </li>
+          </ol>
+        </div>
+
+        <button id="test-health-sync-btn" class="btn-secondary" style="width: 100%;">
+          Test Health Sync (Manual Scale Entry in kg)
+        </button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="today">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+      <span class="nav-label">Today</span>
+    </button>
+
+    <button class="nav-item" data-tab="scanner">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+        <circle cx="12" cy="13" r="4"></circle>
+      </svg>
+      <span class="nav-label">AI Scan</span>
+    </button>
+
+    <button class="nav-item" data-tab="recipes">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+      </svg>
+      <span class="nav-label">Recipes</span>
+    </button>
+
+    <button class="nav-item" data-tab="analytics">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="20" x2="18" y2="10"></line>
+        <line x1="12" y1="20" x2="12" y2="4"></line>
+        <line x1="6" y1="20" x2="6" y2="14"></line>
+      </svg>
+      <span class="nav-label">Progress</span>
+    </button>
+
+    <button class="nav-item" data-tab="settings">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+      <span class="nav-label">Profile</span>
+    </button>
+  </nav>
+
+  <!-- MODAL: ADD FOOD SEARCH -->
+  <div id="modal-add-food" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-drag-handle"></div>
+      <div class="modal-header">
+        <h3 class="modal-title">Add Food to <span id="modal-meal-name" style="color: var(--cal-color)">Meal</span></h3>
+        <button id="modal-close-add-food" class="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="form-row">
+        <input type="text" id="food-search-input" class="form-input" placeholder="Search verified foods, USDA, staples...">
+      </div>
+
+      <div id="food-search-list" class="food-search-results"></div>
+
+      <div id="food-portion-config" style="display: none; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px; margin-top: 14px;">
+        <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 2px;" id="selected-food-name">Food Name</div>
+        <div style="font-size: 0.76rem; color: var(--text-secondary); margin-bottom: 12px;" id="selected-food-sub">100g base</div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 10px; margin-bottom: 8px;">
+          <div>
+            <label class="form-label" style="font-size: 0.74rem;">Amount / Qty</label>
+            <input type="number" step="any" min="0.05" id="food-portion-amount" class="form-input" value="100" style="font-weight: 700; font-size: 1rem;">
+          </div>
+          <div>
+            <label class="form-label" style="font-size: 0.74rem;">Unit</label>
+            <select id="food-portion-unit" class="form-input" style="font-weight: 600; cursor: pointer; background: rgba(18, 26, 38, 0.95);"></select>
+          </div>
+        </div>
+
+        <div id="quick-portion-pills" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 8px;"></div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.76rem; color: var(--text-secondary); background: rgba(0,0,0,0.18); padding: 6px 10px; border-radius: var(--radius-sm);">
+          <span>Calculated Weight:</span>
+          <span id="portion-weight-calc" style="font-weight: 700; color: var(--text-primary);">= 100g</span>
+        </div>
+
+        <div style="display: flex; justify-content: space-around; background: rgba(0,0,0,0.3); border-radius: var(--radius-sm); padding: 10px 8px; font-size: 0.82rem; margin-bottom: 12px;">
+          <div>Cals: <strong id="preview-cals" style="color: var(--cal-color)">0</strong></div>
+          <div>Pro: <strong id="preview-pro" style="color: var(--pro-color)">0g</strong></div>
+          <div>Carbs: <strong id="preview-carb" style="color: var(--carb-color)">0g</strong></div>
+          <div>Fat: <strong id="preview-fat" style="color: var(--fat-color)">0g</strong></div>
+        </div>
+
+        <button id="confirm-add-food-btn" class="btn-primary" style="width: 100%; padding: 11px;">
+          Log Food
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: QUICK CALORIE ADD -->
+  <div id="modal-quick-cals" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-drag-handle"></div>
+      <div class="modal-header">
+        <h3 class="modal-title">Quick Calorie Entry</h3>
+        <button id="modal-close-quick-cals" class="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">Description / Restaurant</label>
+        <input type="text" id="quick-food-name" class="form-input" placeholder="e.g. Steak & Rice Bowl">
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">Meal Category</label>
+        <select id="quick-meal-type" class="form-select">
+          <option value="lunch" selected>Lunch</option>
+          <option value="dinner">Dinner</option>
+          <option value="breakfast">Breakfast</option>
+          <option value="snack">Snack</option>
+        </select>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="form-row">
+          <label class="form-label">Calories</label>
+          <input type="number" id="quick-cals-val" class="form-input" placeholder="750">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Protein (g)</label>
+          <input type="number" id="quick-pro-val" class="form-input" placeholder="50">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="form-row">
+          <label class="form-label">Carbs (g)</label>
+          <input type="number" id="quick-carb-val" class="form-input" placeholder="85">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Fat (g)</label>
+          <input type="number" id="quick-fat-val" class="form-input" placeholder="22">
+        </div>
+      </div>
+
+      <button id="submit-quick-cals-btn" class="btn-primary" style="width: 100%; margin-top: 10px;">
+        Log Meal
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: LOG SCALE IN KG / APPLE HEALTH TEST -->
+  <div id="modal-scale-sync" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-drag-handle"></div>
+      <div class="modal-header">
+        <h3 class="modal-title">Log Morning Scale (kg) & Sleep</h3>
+        <button id="modal-close-scale-sync" class="modal-close-btn">&times;</button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="form-row">
+          <label class="form-label">Scale Weight (kg)</label>
+          <input type="number" step="0.1" id="modal-scale-weight" class="form-input" placeholder="78.0">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Body Fat %</label>
+          <input type="number" step="0.1" id="modal-scale-fat" class="form-input" placeholder="15.0">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="form-row">
+          <label class="form-label">BMI</label>
+          <input type="number" step="0.1" id="modal-scale-bmi" class="form-input" placeholder="24.6">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Sleep (hours)</label>
+          <input type="number" step="0.1" id="modal-scale-sleep" class="form-input" placeholder="8.0">
+        </div>
+      </div>
+
+      <button id="submit-scale-sync-btn" class="btn-primary" style="width: 100%; margin-top: 10px;">
+        Save Scale & Health Data
+      </button>
+    </div>
+  </div>
+
+  <!-- App Script -->
+  <script src="/js/app.js"></script>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.log('SW registration error:', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

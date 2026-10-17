@@ -1,0 +1,10 @@
+# wrangler.toml - Cloudflare Pages & D1 Configuration
+
+name = "trackit"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "trackit-db"
+database_id = "d14c9d69-f333-492e-8554-659a1f67fc1b"

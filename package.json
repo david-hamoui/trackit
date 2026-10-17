@@ -1,0 +1,32 @@
+{
+  "name": "trackit",
+  "version": "1.0.0",
+  "description": "A food-tracking app (100% free).",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "pages:dev": "wrangler pages dev public --d1=DB=trackit-db",
+    "pages:deploy": "wrangler pages deploy public --branch=main --commit-dirty=true",
+    "db:init-local": "wrangler d1 execute trackit-db --local --file=./schema.sql",
+    "db:init-remote": "wrangler d1 execute trackit-db --remote --file=./schema.sql"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/david-hamoui/trackit.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/david-hamoui/trackit/issues"
+  },
+  "homepage": "https://github.com/david-hamoui/trackit#readme",
+  "dependencies": {
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.149.0"
+  }
+}
